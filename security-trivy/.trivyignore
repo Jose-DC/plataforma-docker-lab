@@ -1,0 +1,9 @@
+# Archivo de exclusiones de Trivy
+#
+# Este proyecto no ignora vulnerabilidades por defecto.
+# Agregar CVEs aqui solo despues de una revision manual que confirme que el
+# hallazgo no es accionable para este laboratorio, pertenece a una imagen de
+# tercero pendiente de correccion o corresponde a un riesgo aceptado temporalmente.
+#
+# Ejemplo:
+# CVE-YYYY-NNNNN

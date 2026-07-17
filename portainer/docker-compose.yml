@@ -1,0 +1,19 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:2.33.3-alpine
+    container_name: portainer_app
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - "127.0.0.1:9443:9443"   # Acceso local, idealmente mediante tunel SSH
+    networks:
+      - portainer_net
+
+networks:
+  portainer_net:
+    driver: bridge
+
+volumes:
+  portainer_data:

@@ -1,0 +1,56 @@
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:2.13.1
+    container_name: infra_nginx_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:81:81"
+    environment:
+      TZ: America/Santiago
+      DB_MYSQL_HOST: ${DB_MYSQL_HOST}
+      DB_MYSQL_PORT: ${DB_MYSQL_PORT}
+      DB_MYSQL_USER: ${DB_MYSQL_USER}
+      DB_MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+      DB_MYSQL_NAME: ${DB_MYSQL_NAME}
+    volumes:
+      - proxy_data:/data
+      - proxy_letsencrypt:/etc/letsencrypt
+    depends_on:
+      - db
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - proxy_internal_net
+      - proxy_n8n_net
+
+  db:
+    image: mariadb:10.5
+    container_name: infra_nginx_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - proxy_mysql_data:/var/lib/mysql
+    networks:
+      - proxy_internal_net
+
+networks:
+  proxy_internal_net:
+    internal: true
+  proxy_n8n_net:
+    external: true
+
+volumes:
+  proxy_data:
+    name: proxy_data
+  proxy_letsencrypt:
+    name: proxy_letsencrypt
+  proxy_mysql_data:
+    name: proxy_mysql_data

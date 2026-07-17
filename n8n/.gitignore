@@ -1,0 +1,51 @@
+# Python (si se usa)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de VSCode / sistema
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Entornos / virtualenvs
+venv/
+.venv/
+env/
+ENV/
+
+# Secretos locales (NUNCA subir)
+.env
+*.secret
+*.key
+*.pem
+
+# Logs y backups
+*.log
+logs/
+n8n/
+*.out
+*.err
+*.sql
+*.tar
+*.gz
+*.zip
+*.bak
+
+# Node.js (si hay frontend o npm)
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.idea/
+*.swp
+*.swo
+
+# Archivos temporales del sistema
+*.tmp
+*.temp
+*.swp
+*.swo

@@ -1,0 +1,59 @@
+services:
+  n8n:
+    image: n8nio/n8n:1.115.3
+    container_name: n8n_app
+    env_file: .env
+    restart: unless-stopped
+    expose:
+      - "5678"
+    volumes:
+      - n8n_app_data:/home/node/.n8n
+    networks:
+      - n8n_net
+      - proxy_n8n_net
+    depends_on:
+      - db
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=${DB_HOST}
+      - DB_POSTGRESDB_PORT=${DB_PORT}
+      - DB_POSTGRESDB_DATABASE=${DB_NAME}
+      - DB_POSTGRESDB_USER=${DB_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=axios,qs
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - N8N_TRUST_PROXY=true
+
+  db:
+    image: postgres:12
+    container_name: n8n_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - n8n_db_data:/var/lib/postgresql/data
+    networks:
+      - n8n_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  n8n_app_data:
+    name: n8n_app_data
+  n8n_db_data:
+    name: n8n_db_data
+
+networks:
+  n8n_net:
+    driver: bridge
+  proxy_n8n_net:
+    name: proxy_n8n_net
+    external: true

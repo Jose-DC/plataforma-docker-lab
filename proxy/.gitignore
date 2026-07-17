@@ -1,0 +1,7 @@
+.env
+data/
+letsencrypt/
+mysql_data/
+*.sql
+*.sql.gz
+*.log

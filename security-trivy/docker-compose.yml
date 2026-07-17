@@ -1,0 +1,11 @@
+services:
+  trivy:
+    image: aquasec/trivy:0.67.2
+    volumes:
+      - ./trivy.yaml:/work/trivy.yaml:ro
+      - ./.trivyignore:/root/.trivyignore:ro
+      - ./trivy-cache:/root/.cache/
+      - ./reports:/reports
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles:
+      - sec

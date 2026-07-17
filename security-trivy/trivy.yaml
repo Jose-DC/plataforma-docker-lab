@@ -1,0 +1,5 @@
+# Solo reportar vulnerabilidades de severidad alta o critica.
+severity: 'HIGH,CRITICAL'
+
+# Omitir vulnerabilidades sin fix disponible para reducir ruido operativo.
+ignore-unfixed: true

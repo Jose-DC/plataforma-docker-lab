@@ -1,0 +1,103 @@
+groups:
+  - name: server-alerts
+    rules:
+      - alert: HighServerCPUWarning
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Servidor con CPU elevada"
+          description: "El servidor {{ $labels.instance }} supera el 80% de uso de CPU. Revisar procesos activos."
+
+      - alert: HighServerCPUCritical
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servidor con CPU critica"
+          description: "El servidor {{ $labels.instance }} supera el 90% de CPU de manera sostenida."
+
+      - alert: HighServerMemoryWarning
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Servidor con RAM elevada"
+          description: "El servidor {{ $labels.instance }} supera el 80% de RAM en uso."
+
+      - alert: HighServerMemoryCritical
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servidor con RAM critica"
+          description: "El servidor {{ $labels.instance }} supera el 90% de RAM y puede afectar servicios."
+
+      - alert: HighServerDiskWarning
+        expr: (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"}) / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100 > 75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Servidor con disco casi lleno"
+          description: "El disco {{ $labels.mountpoint }} del servidor {{ $labels.instance }} tiene mas del 75% ocupado."
+
+      - alert: HighServerDiskCritical
+        expr: (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"}) / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servidor con disco critico"
+          description: "El disco {{ $labels.mountpoint }} del servidor {{ $labels.instance }} supera el 90% de uso."
+
+  - name: container-alerts
+    rules:
+      - alert: CadvisorDown
+        expr: up{job="cadvisor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cAdvisor sin metricas"
+          description: "No se reciben metricas desde cAdvisor. Revisar el contenedor infra_cadvisor en {{ $labels.instance }}."
+
+      - alert: HighContainerCPUCritical
+        expr: rate(container_cpu_usage_seconds_total{name!="", image!=""}[2m]) > 0.9
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Contenedor con CPU critica"
+          description: "El contenedor {{ $labels.name }} esta usando mas del 90% de CPU."
+
+      - alert: HighContainerMemoryCritical
+        expr: container_memory_working_set_bytes{name!="", image!=""} > 943718400
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Contenedor con RAM critica"
+          description: "El contenedor {{ $labels.name }} esta consumiendo {{ $value | humanize1024 }}."
+
+      - alert: ContainerRestartingTooMuch
+        expr: changes(container_start_time_seconds{name!="", image!=""}[15m]) > 3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Contenedor inestable"
+          description: "El contenedor {{ $labels.name }} se ha reiniciado mas de 3 veces en los ultimos 15 minutos."
+
+      - alert: ContainerDown
+        expr: (time() - timestamp(container_last_seen{name!="", image!="", container_label_com_docker_compose_oneoff!="True"})) > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Contenedor sin metricas recientes"
+          description: "El contenedor {{ $labels.name }} ha dejado de reportar metricas hace mas de 1 minuto."

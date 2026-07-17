@@ -1,0 +1,79 @@
+# =====================
+# Archivos sensibles
+# =====================
+.env
+*.env
+!.env.example
+*.key
+*.crt
+*.pem
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+*.secret
+secrets/
+
+# =====================
+# Datos persistentes de servicios
+# =====================
+# Postgres / MySQL / MariaDB
+*/pgdata/
+*/mysql_data/
+*/mariadb_data/
+*/postgres_data/
+*/db_data/
+*/data/
+
+# Grafana, Prometheus, Portainer
+*/grafana_data/
+*/prometheus_data/
+*/portainer_data/
+*/.n8n/
+n8n/n8n/
+
+# Nginx Proxy Manager / Certificados
+*/letsencrypt/
+*/npm_data/
+
+# Backups, dumps y artefactos generados
+*.sql
+*.dump
+*.bak
+*.backup
+*.tar
+*.tar.gz
+*.zip
+*.7z
+reports/
+logs/
+
+# =====================
+# Archivos temporales y logs
+# =====================
+*.log
+__pycache__/
+*.pyc
+*.pid
+*.sock
+*.journal
+tmp/
+cache/
+
+# =====================
+# Archivos de sistema / editor
+# =====================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =====================
+# ---- Trivy ----
+# =====================
+security-trivy/trivy-cache/
+security-trivy/reports/
+security-trivy/logs/
+*.sarif

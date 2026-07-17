@@ -1,0 +1,129 @@
+﻿# ----------------------------------------------------------------------
+# PLANTILLA BASE: PHP + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Este archivo define los contenedores (servicios) que componen el stack.
+# Cada servicio tiene su propio contenedor: uno para PHP (app),
+# otro para MySQL (db) y un tercero opcional para phpMyAdmin.
+# Las variables entre ${} se cargan desde el archivo .env
+# ----------------------------------------------------------------------
+
+services:
+  # --- Servicio principal de la aplicacion PHP ---
+  app:
+    container_name: ${PROJECT}_app   # Nombre del contenedor (usa el nombre del proyecto)
+    image: ${PROJECT}_app:1.0            # Define el nombre y version de la imagen
+
+    # Se construye la imagen a partir del Dockerfile en ./app
+    build:
+      context: ./app                 # Carpeta donde esta el Dockerfile
+      dockerfile: Dockerfile         # Nombre del archivo Dockerfile
+      args:
+        LANG_VERSION: ${LANG_VERSION} # Asegura que se pase como ARG al Dockerfile
+
+    # Variables de entorno cargadas desde el archivo .env
+    env_file: .env
+
+    # Politica de reinicio: el contenedor se reinicia automaticamente
+    # si se detiene por error (excepto si se detiene manualmente).
+    restart: unless-stopped
+
+    # Expone el puerto 80 dentro del contenedor (sin publicarlo al host)
+    # El proxy inverso (Nginx Proxy Manager o Traefik) se encargara del acceso externo.
+    expose:
+      - "80"
+
+    # Conexion a las redes internas y externas
+    networks:
+      - ${PROJECT}_net       # Red interna del proyecto
+      - proxy_${PROJECT}_net # Red externa que conecta al proxy inverso
+
+    # Dependencia: este contenedor solo se inicia cuando el de base de datos este saludable
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Healthcheck: prueba periodica para verificar que el contenedor PHP responde correctamente
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Servicio de base de datos MySQL ---
+  db:
+    # Imagen oficial de MySQL con la version elegida por el usuario en el .env
+    image: mysql:${DB_VERSION}
+
+    # Nombre del contenedor con la convencion <proyecto>_db
+    container_name: ${PROJECT}_db
+
+    # Carga las variables definidas en el archivo .env (contrasena, base de datos, etc.)
+    env_file: .env
+
+    # Configuracion de entorno especifica para MySQL
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}  # Contrasena del usuario root
+      MYSQL_DATABASE: ${MYSQL_DATABASE}            # Nombre de la base de datos
+      MYSQL_USER: ${MYSQL_USER}                    # Usuario estandar
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}            # Contrasena del usuario estandar
+
+    # Volumen persistente donde se guardan los datos de la base de datos
+    # Asi los datos se mantienen aunque el contenedor se elimine.
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+    # Healthcheck: verifica periodicamente si la base de datos esta operativa
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - ${PROJECT}_net  # Solo esta en la red interna (no se expone al exterior)
+
+  # --- Servicio opcional: phpMyAdmin ---
+  phpmyadmin:
+    # Imagen oficial mas reciente de phpMyAdmin
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+
+    # Variables necesarias para que phpMyAdmin se conecte a MySQL
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+    restart: unless-stopped
+
+    # phpMyAdmin tambien escucha en el puerto 80 (pero va por proxy)
+    expose:
+      - "80"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Conecta tanto a la red interna (para hablar con la DB)
+    # como a la red del proxy (para acceso externo)
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    # Este servicio solo se levanta si el usuario pasa el perfil "phpmyadmin"
+    profiles:
+      - phpmyadmin
+
+# --- Definicion de volumenes persistentes ---
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+
+# --- Definicion de redes ---
+networks:
+  ${PROJECT}_net:       # Red interna privada del proyecto
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net: # Red externa compartida con el proxy inverso
+    name: proxy_${PROJECT}_net
+    external: true
