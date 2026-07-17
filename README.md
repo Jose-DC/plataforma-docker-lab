@@ -81,7 +81,7 @@ plataforma-docker/
 |-- portainer/        # Portainer CE para gestion visual de contenedores
 |-- proxy/            # Nginx Proxy Manager y base de datos
 |-- security-trivy/   # Escaneo de imagenes Docker con Trivy
-|-- docs/             # Validacion local y notas de publicacion
+|-- docs/             # Validacion tecnica local
 |-- .gitignore
 `-- README.md
 ```
@@ -164,5 +164,4 @@ Ejemplo de servicio desplegable dentro de la plataforma, con PostgreSQL y conexi
 
 Repositorio preparado como proyecto de portafolio. El alcance real es un
 prototipo/laboratorio funcional sobre un unico host Docker, no una plataforma
-productiva terminada. Para publicarlo en GitHub se recomienda seguir la guia
-[`docs/publicacion-github.md`](docs/publicacion-github.md).
+productiva terminada.
