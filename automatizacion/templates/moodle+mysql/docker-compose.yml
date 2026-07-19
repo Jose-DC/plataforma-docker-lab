@@ -1,0 +1,75 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Moodle + MySQL
+# ----------------------------------------------------------------------
+# Esta plantilla incluye:
+# - app: Moodle (Basado en moodlehq/moodle-php-apache)
+# - db: MySQL
+# - phpmyadmin: opcional (perfil)
+# ----------------------------------------------------------------------
+services:
+
+  app:
+    build:
+      context: ./app
+      args:
+        MOODLE_BRANCH: ${MOODLE_BRANCH}
+    container_name: ${PROJECT}_app
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./moodledata:/var/www/moodledata
+    env_file: .env
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- Contenedor de base de datos MySQL ---
+  db:
+    image: mysql:${DB_VERSION}  # Usamos la versión de MySQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql  # Volumen para persistir los datos de la base de datos
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Servicio opcional: phpMyAdmin ---
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    profiles:
+      - phpmyadmin
+
+# Volúmenes persistentes
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_phpmyadmin_data:
+    name: ${PROJECT}_phpmyadmin_data
+
+# Redes
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true

@@ -1,0 +1,79 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Laravel + PostgreSQL (+ pgAdmin opcional)
+# ----------------------------------------------------------------------
+# Este stack incluye:
+# - app: PHP-FPM para Laravel
+# - db: PostgreSQL
+# - pgadmin: opción para gestionar PostgreSQL de manera visual
+# ----------------------------------------------------------------------
+services:
+  # Contenedor para Laravel (PHP-FPM y Nginx)
+  app:
+    image: shinsenter/laravel:php8.3-nginx  # Usamos la imagen preconfigurada de Laravel
+    container_name: ${PROJECT}_app
+    env_file: .env  # Carga el archivo .env de Laravel y PostgreSQL
+    restart: unless-stopped
+    expose:
+      - "80"  # Solo expone el puerto 80 para Nginx
+    volumes:
+      - ./app:/var/www/html  # Mapea la carpeta local 'app/' al contenedor
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net  # Conexión con la red externa del proxy
+    depends_on:
+      - db  # Laravel depende de la base de datos PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep php-fpm > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Contenedor para PostgreSQL
+  db:
+    image: postgres:${DB_VERSION}  # Usamos la versión de PostgreSQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env  # Carga las variables de entorno para PostgreSQL
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/postgresql/data
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Servicio opcional para pgAdmin (gestión web de PostgreSQL)
+  pgadmin:
+    image: dpage/pgadmin4:latest  # Imagen oficial de pgAdmin
+    container_name: ${PROJECT}_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - ${PROJECT}_pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    profiles:
+      - pgadmin  # Este servicio se activa solo si se usa el perfil "pgadmin"
+
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_pgadmin_data:
+    name: ${PROJECT}_pgadmin_data
+
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true  # Conexión a la red externa del proxy

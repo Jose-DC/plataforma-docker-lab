@@ -1,0 +1,32 @@
+# Ignorar archivos innecesarios
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.tmp
+*.out
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Ignorar control de versiones
+.git/
+.gitignore
+.github/
+
+# Ignorar IDEs
+.vscode/
+.idea/
+
+# Ignorar dependencias innecesarias
+node_modules/
+*.egg-info/
+
+# Si la app está dentro de /app
+app/__pycache__/
+app/*.pyc
+app/*.log
+app/.git/
+app/.DS_Store

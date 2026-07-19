@@ -1,0 +1,110 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Node.js + PostgreSQL (+ pgAdmin opcional)
+# ----------------------------------------------------------------------
+# Esta plantilla define un servicio Node.js (app), una base de datos
+# PostgreSQL (db) y opcionalmente pgAdmin como panel web.
+# Las variables ${} se cargan desde el archivo .env generado automáticamente.
+# ----------------------------------------------------------------------
+
+services:
+  # --- Servicio principal de la aplicación Node.js ---
+  app:
+    container_name: ${PROJECT}_app
+    image: ${PROJECT}_app:1.0
+
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        LANG_VERSION: ${LANG_VERSION} # Asegura que se pase como ARG al Dockerfile
+
+    env_file: .env
+    restart: unless-stopped
+
+    expose:
+      - "80"
+
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Servicio de base de datos PostgreSQL ---
+  db:
+    # Imagen oficial de PostgreSQL con la versión elegida por el usuario en el .env
+    image: postgres:${DB_VERSION}
+
+    # Nombre del contenedor con la convención <proyecto>_db
+    container_name: ${PROJECT}_db
+
+    # Carga las variables definidas en el archivo .env (base de datos, usuario, etc.)
+    env_file: .env
+
+    # Configuración de entorno específica para PostgreSQL
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}                # Nombre de la base de datos
+      POSTGRES_USER: ${POSTGRES_USER}            # Usuario principal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}    # Contraseña del usuario
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+    # Healthcheck: verifica periódicamente si la base de datos está operativa
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - ${PROJECT}_net  # Solo está en la red interna (no se expone al exterior)
+
+  # --- Servicio opcional: pgAdmin ---
+  pgadmin:
+    # Imagen oficial más reciente de pgAdmin (interfaz web para PostgreSQL)
+    image: dpage/pgadmin4:latest
+    container_name: ${PROJECT}_pgadmin
+
+    # Variables necesarias para crear el usuario administrador de pgAdmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - ${PROJECT}_pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    # Este servicio solo se levanta si el usuario pasa el perfil "pgadmin"
+    profiles:
+      - pgadmin
+
+# --- Definición de volúmenes persistentes ---
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_pgadmin_data:
+    name: ${PROJECT}_pgadmin_data
+
+# --- Definición de redes ---
+networks:
+  ${PROJECT}_net:       # Red interna privada del proyecto
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net: # Red externa compartida con el proxy inverso
+    name: proxy_${PROJECT}_net
+    external: true

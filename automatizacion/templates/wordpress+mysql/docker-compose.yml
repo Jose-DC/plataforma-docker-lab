@@ -1,0 +1,77 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Wordpress + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Este stack incluye:
+# - app: Wordpress
+# - db: MySQL
+# - phpmyadmin: opcional (profile)
+# ----------------------------------------------------------------------
+services:
+  # Contenedor para WordPress
+  wordpress:
+    image: wordpress:php8.1-apache #versión imagen
+    container_name: ${PROJECT}_app
+    env_file: .env  # Carga el archivo .env con las configuraciones necesarias
+    restart: unless-stopped
+    expose:
+      - "80"   # No exponemos puertos al host, ya que se conectará al proxy inverso
+    volumes:
+      - ./app:/var/www/html/  # carpeta html a la carpeta app local (temas, plugins, uploads)
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net  # Conexión con la red externa del proxy inverso
+    depends_on:
+      - db  # Depende de la base de datos MySQL
+    environment:
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}  # Usamos la variable definida en .env
+      WORDPRESS_DB_USER: ${MYSQL_USER}  # Usar la variable de la base de datos
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}  # Usar la misma contraseña
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}  # Base de datos de WordPress
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Contenedor para MySQL
+  db:
+    image: mysql:${DB_VERSION}  # Usamos la versión de MySQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env  # Carga las variables de entorno para MySQL
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql  # Volumen para persistir los datos de la base de datos
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Servicio para phpMyAdmin (opcional)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net  # Conexión con la red externa del proxy inverso
+    profiles:
+      - phpmyadmin
+
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data  # Volumen persistente para los datos de MySQL
+
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true  # Conexión a la red externa del proxy

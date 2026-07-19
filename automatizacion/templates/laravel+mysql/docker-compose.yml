@@ -1,0 +1,73 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Laravel + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Este stack incluye:
+# - app: PHP-FPM para Laravel
+# - web: Nginx que sirve Laravel en el puerto 80
+# - db: MySQL
+# - phpmyadmin: opcional (profile)
+# ----------------------------------------------------------------------
+services:
+  # Contenedor para Laravel (PHP-FPM y Nginx)
+  app:
+    image: shinsenter/laravel:php8.3-nginx  # Usamos la imagen preconstruida de Laravel
+    container_name: ${PROJECT}_app
+    env_file: .env  # Carga el archivo .env de Laravel y MySQL
+    restart: unless-stopped
+    expose:
+      - "80"  # Solo expone el puerto 80 para Nginx
+    volumes:
+      - ./app:/var/www/html  # Mapea la carpeta local 'app/' al contenedor
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net  # Conexión con la red externa del proxy
+    depends_on:
+      - db  # Laravel depende de la base de datos MySQL
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep php-fpm > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Contenedor para MySQL
+  db:
+    image: mysql:${DB_VERSION}  # Usamos la versión de MySQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env  # Carga las variables de entorno para MySQL
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Servicio para phpMyAdmin (para gestionar la base de datos)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    profiles:
+      - phpmyadmin
+
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true  # Conexión a la red externa del proxy

@@ -1,0 +1,58 @@
+# ============================
+# Archivos de sistema
+# ============================
+.DS_Store
+Thumbs.db
+
+# ============================
+# Entornos / claves / secretos
+# ============================
+.env
+.env.local
+*.secret
+*.key
+*.pem
+
+# ============================
+# Python
+# ============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# ============================
+# Node.js
+# ============================
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+
+# ============================
+# Logs y outputs
+# ============================
+*.log
+*.out
+*.tmp
+*.bak
+*.gz
+*.zip
+*.tar
+
+# ============================
+# IDEs
+# ============================
+.vscode/
+.idea/
+
+# ============================
+# Contenido dentro de app/
+# (para cualquier stack)
+# ============================
+app/__pycache__/
+app/*.pyc
+app/*.log
+app/.git/
+app/.DS_Store

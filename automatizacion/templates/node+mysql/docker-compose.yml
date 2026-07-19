@@ -1,0 +1,97 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Node.js + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Servicios:
+#   - app: aplicación Node.js
+#   - db: base de datos MySQL
+#   - phpmyadmin: panel web opcional para administrar MySQL
+# ----------------------------------------------------------------------
+
+services:
+  # --- Servicio principal de la aplicación Node.js ---
+  app:
+    container_name: ${PROJECT}_app
+    image: ${PROJECT}_app:1.0
+
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        LANG_VERSION: ${LANG_VERSION}
+
+    env_file: .env
+    restart: unless-stopped
+
+    expose:
+      - "80"
+
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Servicio de base de datos MySQL ---
+  db:
+    image: mysql:${DB_VERSION}
+    container_name: ${PROJECT}_db
+    env_file: .env
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql
+
+    networks:
+      - ${PROJECT}_net
+
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Servicio opcional: phpMyAdmin ---
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    profiles:
+      - phpmyadmin
+
+# --- Volúmenes persistentes ---
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_phpmyadmin_data:
+    name: ${PROJECT}_phpmyadmin_data
+
+# --- Redes ---
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true

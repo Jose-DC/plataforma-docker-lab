@@ -1,0 +1,84 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Moodle + PostgreSQL
+# ----------------------------------------------------------------------
+# Esta plantilla incluye:
+# - app: Moodle (Basado en moodlehq/moodle-php-apache)
+# - db: PostgreSQL
+# - pgadmin: opcional (perfil)
+# ----------------------------------------------------------------------
+
+services:
+
+  app:
+    build:
+      context: ./app
+      args:
+        MOODLE_BRANCH: ${MOODLE_BRANCH}
+    container_name: ${PROJECT}_app
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./moodledata:/var/www/moodledata
+    env_file: .env
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- Contenedor de base de datos PostgreSQL ---
+  db:
+    image: postgres:${DB_VERSION}  # Usamos la versión de PostgreSQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}            # Nombre de la base de datos
+      POSTGRES_USER: ${POSTGRES_USER}        # Usuario principal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}# Contraseña del usuario
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/postgresql/data  # Volumen para persistir los datos de la base de datos
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Servicio opcional: pgAdmin ---
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ${PROJECT}_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - ${PROJECT}_pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    profiles:
+      - pgadmin  # Solo se levanta si se activa el perfil pgadmin
+
+# Volúmenes persistentes
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_pgadmin_data:
+    name: ${PROJECT}_pgadmin_data
+
+# Redes
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true

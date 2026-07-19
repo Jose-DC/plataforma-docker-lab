@@ -1,0 +1,100 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: FastApi + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Esta plantilla define un servicio Python (app), una base de datos
+# MySQL (db) y opcionalmente phpMyAdmin como panel web.
+# Las variables ${} se cargan desde el archivo .env generado automáticamente.
+# ----------------------------------------------------------------------
+
+services:
+  app:
+    container_name: ${PROJECT}_app
+    image: ${PROJECT}_app:1.0
+
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        LANG_VERSION: ${LANG_VERSION}
+
+    env_file: .env
+    restart: unless-stopped
+
+    expose:
+      - "80"
+
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Healthcheck usando Python (sin wget ni curl)
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:80')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------
+  # Servicio de base de datos MySQL
+  # -------------------------------------------------------------------
+  db:
+    image: mysql:${DB_VERSION}
+    container_name: ${PROJECT}_db
+    env_file: .env
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql
+
+    networks:
+      - ${PROJECT}_net
+
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -------------------------------------------------------------------
+  # Servicio opcional: phpMyAdmin
+  # -------------------------------------------------------------------
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+
+    profiles:
+      - phpmyadmin
+
+# --- Volúmenes persistentes ---
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data
+  ${PROJECT}_phpmyadmin_data:
+    name: ${PROJECT}_phpmyadmin_data
+
+# --- Redes ---
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true

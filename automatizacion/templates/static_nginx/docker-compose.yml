@@ -1,0 +1,22 @@
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: Static Nginx (sitios HTML, CSS, JS, frontends simples)
+# ----------------------------------------------------------------------
+# Esta plantilla despliega un servicio Nginx que sirve archivos estáticos
+# desde la carpeta ./app. Ideal para sitios simples o frontends de JS.
+# ----------------------------------------------------------------------
+
+services:
+  app:
+    image: nginx:1.26-alpine
+    container_name: ${PROJECT}_app
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./app:/usr/share/nginx/html  # Archivos estáticos
+    networks:
+      - proxy_${PROJECT}_net  # Red externa para conectarse al proxy inverso
+
+networks:
+  proxy_${PROJECT}_net:
+    external: true

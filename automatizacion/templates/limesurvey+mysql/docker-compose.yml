@@ -1,0 +1,96 @@
+
+# ----------------------------------------------------------------------
+# PLANTILLA BASE: LimeSurvey + MySQL (+ phpMyAdmin opcional)
+# ----------------------------------------------------------------------
+# Este stack incluye:
+# - app: LimeSurvey (Basado en martialblog/limesurvey)
+# - db: MySQL
+# - phpmyadmin: opcional (profile)
+# ----------------------------------------------------------------------
+services:
+  # Contenedor principal: LimeSurvey
+  app:
+    image: acspri/limesurvey:6.15.23   # Imagen con la versión 6.15.23
+    container_name: ${PROJECT}_app
+    restart: unless-stopped
+    expose:
+      - "80"  # puerto expuesto para el proxy
+    volumes:
+      - ./app:/var/www/html/upload                 # Encuestas y recursos subidos
+      - ./config:/var/www/html/application/config  # Configuración (config.php y security.php)
+      - ./plugins:/var/www/html/plugins            # Complementos instalados
+      - ${PROJECT}_sessions_data:/var/lime/sessions
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      LIMESURVEY_DB_HOST: ${MYSQL_HOST}
+      LIMESURVEY_DB_USER: ${MYSQL_USER}
+      LIMESURVEY_DB_PASSWORD: ${MYSQL_PASSWORD}
+      LIMESURVEY_DB_NAME: ${MYSQL_DATABASE}
+      LIMESURVEY_ADMIN_USER: ${ADMIN_USER}
+      LIMESURVEY_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      LIMESURVEY_ADMIN_NAME: "Administrador de LimeSurvey"
+      LIMESURVEY_ADMIN_EMAIL: ${ADMIN_EMAIL}
+
+  # Contenedor de inicialización, para poder dar permisos al archivo security de www.data y quede todo listo para llegar y mostrar en el proxy host.
+  init:
+    image: busybox:1.35-uclibc
+    container_name: ${PROJECT}_init
+    command: ["sh", "-c", "sleep 30 && chown -R www-data:www-data /var/www/html/application/config && chown -R www-data:www-data /var/www/html/plugins && exit 0"]
+    volumes:
+      - ./config:/var/www/html/application/config
+      - ./plugins:/var/www/html/plugins
+    networks:
+      - ${PROJECT}_net
+    depends_on:
+      - app
+    restart: "no"
+
+  # Contenedor de base de datos MySQL
+  db:
+    image: mysql:${DB_VERSION}  # Usamos la versión de MySQL definida en .env
+    container_name: ${PROJECT}_db
+    env_file: .env  # Carga las variables de entorno para MySQL
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT}_db_data:/var/lib/mysql  # Volumen para persistir los datos de la base de datos
+    networks:
+      - ${PROJECT}_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Servicio para phpMyAdmin (opcional)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ${PROJECT}_phpmyadmin
+    env_file: .env
+    expose:
+      - "80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - ${PROJECT}_net
+      - proxy_${PROJECT}_net  # Conexión con la red externa del proxy inverso
+    profiles:
+      - phpmyadmin
+
+volumes:
+  ${PROJECT}_db_data:
+    name: ${PROJECT}_db_data  # Volumen persistente para los datos de MySQL
+  ${PROJECT}_sessions_data:
+    name: ${PROJECT}_sessions_data
+
+networks:
+  ${PROJECT}_net:
+    name: ${PROJECT}_net
+  proxy_${PROJECT}_net:
+    name: proxy_${PROJECT}_net
+    external: true  # Conexión a la red externa del proxy
